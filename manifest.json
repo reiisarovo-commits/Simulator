@@ -1,0 +1,26 @@
+{
+  "name": "聊天模拟器",
+  "short_name": "聊天模拟器",
+  "description": "模拟单聊/群聊的聊天记录工具",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#adbbd0",
+  "theme_color": "#adbbd0",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

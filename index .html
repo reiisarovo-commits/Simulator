@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>聊天模拟器</title>
+<!-- PWA 配置开始 -->
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#adbbd0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="聊天模拟器">
+<link rel="apple-touch-icon" href="./icons/icon.svg">
+<!-- PWA 配置结束 -->
+<style>
+:root{--bg:#adbbd0;--ink:#1c1c1e;--sub:#46546a;--other:#fff;--me:#fee500;--bubink:#1c1c1e;--panel:#fff;--line:#dde3ec;--field:#eef1f6;--accent:#3b5b8f;color-scheme:light}
+@media(prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--bg:#27303d;--ink:#eceff4;--sub:#9fb0c8;--other:#3a4454;--me:#c9ab00;--bubink:#eceff4;--panel:#1d242e;--line:#38424f;--field:#2b3441;--accent:#8fb0e8;color-scheme:dark}
+  :root:not([data-theme="light"]) .me .bub{color:#171400}
+}
+:root[data-theme="dark"]{--bg:#27303d;--ink:#eceff4;--sub:#9fb0c8;--other:#3a4454;--me:#c9ab00;--bubink:#eceff4;--panel:#1d242e;--line:#38424f;--field:#2b3441;--accent:#8fb0e8;color-scheme:dark}
+:root[data-theme="dark"] .me .bub{color:#171400}
+
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.4 -apple-system,"PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif;-webkit-tap-highlight-color:transparent}
+
+#app{height:100%;max-width:520px;margin:0 auto;display:flex;flex-direction:column;position:relative;
+     padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+
+header{display:flex;align-items:center;gap:10px;padding:14px 16px;flex:none}
+header .spacer{width:30px;flex:none}
+header h1{margin:0;font-size:18px;font-weight:700;cursor:pointer;text-align:center;
+          overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+header .ic{width:30px;height:30px;stroke:var(--ink);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;background:none;border:0;padding:0;cursor:pointer;flex:none}
+header .r{display:flex;gap:22px;width:30px;flex:none;justify-content:flex-end}
+
+#list{flex:1;overflow-y:auto;padding:10px 14px 16px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.row{display:flex;gap:8px;align-items:flex-start;margin-bottom:14px}
+.row.me{flex-direction:row-reverse}
+.av{width:38px;height:38px;border-radius:38%;flex:none;background-size:cover;background-position:center;display:grid;place-items:center;color:#fff;font-weight:700;font-size:16px;cursor:pointer;overflow:hidden}
+.col{max-width:72%;display:flex;flex-direction:column;align-items:flex-start;min-width:0}
+.me .col{align-items:flex-end}
+.nm{font-size:12px;color:var(--sub);margin:0 2px 3px}
+.bub{padding:8px 13px;border-radius:16px;font-size:15px;background:var(--other);color:var(--bubink);white-space:pre-wrap;word-break:break-word;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:pan-y;cursor:default}
+.other .bub{border-top-left-radius:5px}
+.me .bub{background:var(--me);border-top-right-radius:5px}
+.bub.pic{padding:0;background:none!important;line-height:0}
+.bub.pic img{width:min(180px,46vw);border-radius:14px;display:block;-webkit-user-drag:none}
+.empty{text-align:center;color:var(--sub);margin-top:30vh;font-size:15px}
+
+#bar{flex:none;background:var(--panel);padding:8px 10px;display:flex;gap:8px;align-items:center;border-top:1px solid var(--line)}
+#bar.hide{display:none}
+#bar input[type=text]{flex:1;min-width:0;border:0;border-radius:18px;padding:10px 14px;font:inherit;font-size:16px;background:var(--field);color:var(--ink);outline-offset:2px}
+button{font:inherit;color:inherit}
+.pill{border:1px solid var(--line);background:var(--field);border-radius:16px;padding:7px 11px;font-size:14px;cursor:pointer;max-width:30vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:none}
+.send{border:0;background:var(--me);color:#171400;border-radius:16px;padding:9px 15px;font-weight:700;cursor:pointer;flex:none}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent)}
+
+#ov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:20}
+#ov.on{display:flex}
+#ov.sheet{align-items:flex-end;justify-content:center}
+#ov.dlg{align-items:center;justify-content:center;padding:20px}
+.card{background:var(--panel);width:100%;max-width:360px;border-radius:18px;padding:18px;max-height:86vh;overflow-y:auto}
+.sheetbox{background:var(--panel);width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:8px 12px calc(12px + env(safe-area-inset-bottom,0px));max-height:78vh;overflow-y:auto}
+.sheetbox button{display:block;width:100%;background:none;border:0;border-bottom:1px solid var(--line);padding:15px;font-size:17px;cursor:pointer;text-align:center}
+.sheetbox button:last-child{border:0;color:var(--sub)}
+.sheetbox .danger{color:#d93a3a}
+.card h2{margin:0 0 14px;font-size:18px}
+.card .big{width:84px;height:84px;margin:0 auto 12px;font-size:34px;cursor:default}
+.card .c{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:14px}
+.card input[type=text],.card textarea{width:100%;box-sizing:border-box;border:1px solid var(--line);background:var(--field);color:var(--ink);border-radius:10px;padding:10px 12px;font:inherit;font-size:16px}
+.card textarea{min-height:90px;resize:vertical}
+.card select{width:100%;box-sizing:border-box;border:1px solid var(--line);background:var(--field);color:var(--ink);border-radius:10px;padding:10px 12px;font:inherit;font-size:16px;margin-bottom:10px}
+.card label{display:block;font-size:14px;color:var(--sub);margin-bottom:6px}
+.acts{display:flex;gap:10px;margin-top:16px}
+.acts button{flex:1;border-radius:12px;padding:11px;border:1px solid var(--line);background:var(--field);cursor:pointer;font-size:16px}
+.acts .ok{background:var(--me);border-color:transparent;color:#171400;font-weight:700}
+
+.mlist{max-height:180px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;padding:6px;margin-bottom:10px;background:var(--field)}
+.card .mlist label,.mlist .mrow{display:flex;align-items:center;gap:8px;padding:7px 6px;font-size:15px;color:var(--ink);margin:0;cursor:pointer;border-radius:8px}
+.mrow:active{background:rgba(127,127,127,.12)}
+.mrow input{width:18px;height:18px;flex:none;accent-color:var(--accent);margin:0}
+.mrow span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.toast{position:fixed;left:50%;bottom:96px;transform:translate(-50%,10px);background:rgba(0,0,0,.8);color:#fff;
+       padding:9px 16px;border-radius:20px;font-size:14px;z-index:30;opacity:0;pointer-events:none;
+       transition:opacity .2s,transform .2s;max-width:80vw;text-align:center}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="spacer"></div>
+    <h1 id="title" title="点击切换群聊或私聊"></h1>
+    <div class="r">
+      <button class="ic" id="menu" aria-label="菜单"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    </div>
+  </header>
+  <div id="list"></div>
+  <div id="bar">
+    <button class="pill" id="who" title="切换发送人"></button>
+    <input type="text" id="txt" placeholder="再发一句…" autocomplete="off" enterkeyhint="send">
+    <button class="pill" id="imgbtn">图片</button>
+    <button class="send" id="send">发送</button>
+  </div>
+</div>
+<div id="ov"></div>
+<input type="file" id="file" accept="image/*" hidden>
+
+<script>
+const $=s=>document.querySelector(s);
+const KEY='chatsim-v2';
+
+/* ---------- 会话 id ---------- */
+function sidForPair(a,b){const p=[a,b].sort();return 'p:'+p[0]+'|'+p[1]}
+function pairFromSid(sid){
+  if(typeof sid!=='string'||sid.slice(0,2)!=='p:')return null;
+  const p=sid.slice(2).split('|');
+  return p.length===2?p:null;
+}
+
+const DEF=()=>{
+  const u={u0:{name:'操作者',av:''},u1:{name:'好友',av:''}};
+  const sid=sidForPair('u0','u1');
+  return {
+    u,
+    sender:'u0',
+    view:'u0',
+    cur:sid,
+    sessions:{
+      [sid]:{mode:'role',role:'',group:'',members:['u0','u1'],m:[]}
+    },
+    presets:[],
+    hideBar:false
+  };
+};
+
+/* ---------- 数据校验 / 旧数据迁移 ---------- */
+function normalize(raw){
+  const d=DEF();
+  if(!raw||typeof raw!=='object')return d;
+  const u={};
+  if(raw.u&&typeof raw.u==='object'){
+    for(const k of Object.keys(raw.u)){
+      const v=raw.u[k];
+      if(v&&typeof v==='object'){
+        const nm=String(v.name==null?'':v.name).slice(0,20).trim();
+        u[k]={name:nm||'?',av:typeof v.av==='string'?v.av:''};
+      }
+    }
+  }
+  if(!Object.keys(u).length)Object.assign(u,d.u);
+  const keys=Object.keys(u);
+  const pickOne=c=>(c&&u[c])?c:null;
+
+  /* 新结构：sessions 存在 */
+  if(raw.sessions&&typeof raw.sessions==='object'&&typeof raw.cur==='string'&&raw.sessions[raw.cur]){
+    const sessions={};
+    for(const sid of Object.keys(raw.sessions)){
+      const s=raw.sessions[sid];
+      if(!s||typeof s!=='object')continue;
+      const mode=s.mode==='group'?'group':'role';
+      const members=Array.isArray(s.members)?s.members.filter(k=>u[k]):[];
+      const m=[];
+      if(Array.isArray(s.m)){
+        for(const x of s.m){
+          if(!x||!u[x.w]||typeof x.v!=='string')continue;
+          m.push({id:Number(x.id)||0,w:x.w,t:x.t==='i'?'i':'t',v:x.v});
+        }
+      }
+      sessions[sid]={
+        mode,
+        role:pickOne(s.role)||'',
+        group:(typeof s.group==='string'&&s.group.trim())?s.group.trim().slice(0,30):'群聊',
+        members,
+        m
+      };
+    }
+    if(!Object.keys(sessions).length)sessions[d.cur]=d.sessions[d.cur];
+    const cur=sessions[raw.cur]?raw.cur:Object.keys(sessions)[0];
+
+    const presets=[];
+    if(Array.isArray(raw.presets)){
+      for(const p of raw.presets){
+        if(!p||typeof p!=='object')continue;
+        const nm=(typeof p.name==='string'&&p.name.trim())?p.name.trim().slice(0,30):'未命名群';
+        const ms=Array.isArray(p.members)?p.members.filter(k=>u[k]):[];
+        let psid=(typeof p.sid==='string'&&p.sid)?p.sid:'';
+        if(!psid)psid='g:preset-'+(Number(p.id)||nm);
+        if(!sessions[psid])sessions[psid]={mode:'group',role:'',group:nm,members:ms,m:[]};
+        presets.push({id:Number(p.id)||0,name:nm,members:ms,sid:psid});
+      }
+    }
+    return {
+      u,
+      sender:pickOne(raw.sender)||keys[0],
+      view:pickOne(raw.view)||keys[0],
+      cur,
+      sessions,
+      presets,
+      hideBar:raw.hideBar===true
+    };
+  }
+
+  /* 旧结构迁移 */
+  const sender=pickOne(raw.sender)||pickOne(raw.who)||keys[0];
+  const view=pickOne(raw.view)||pickOne(raw.who)||keys[0];
+  const t=(raw.title&&typeof raw.title==='object')?raw.title:{};
+  let members=Array.isArray(t.members)?t.members.filter(k=>u[k]):[];
+  if(!members.length)members=keys.slice();
+
+  const m=[];
+  if(Array.isArray(raw.m)){
+    for(const x of raw.m){
+      if(!x||!u[x.w]||typeof x.v!=='string')continue;
+      m.push({id:Number(x.id)||0,w:x.w,t:x.t==='i'?'i':'t',v:x.v});
+    }
+  }
+
+  const sessions={};
+  let cur;
+  if(t.mode==='group'){
+    cur='g:legacy-'+Date.now();
+    sessions[cur]={
+      mode:'group',role:'',
+      group:(typeof t.group==='string'&&t.group.trim())?t.group.trim().slice(0,30):'群聊',
+      members,m
+    };
+  }else{
+    const other=(t.role&&u[t.role])?t.role:(keys.find(k=>k!==view)||view);
+    cur=sidForPair(view,other);
+    sessions[cur]={mode:'role',role:(t.role&&u[t.role])?t.role:'',group:'',members:[view,other],m};
+  }
+
+  const presets=[];
+  if(Array.isArray(raw.presets)){
+    for(const p of raw.presets){
+      if(!p||typeof p!=='object')continue;
+      const nm=(typeof p.name==='string'&&p.name.trim())?p.name.trim().slice(0,30):'未命名群';
+      const ms=Array.isArray(p.members)?p.members.filter(k=>u[k]):[];
+      const psid='g:preset-'+(Number(p.id)||nm);
+      if(!sessions[psid])sessions[psid]={mode:'group',role:'',group:nm,members:ms,m:[]};
+      presets.push({id:Number(p.id)||0,name:nm,members:ms,sid:psid});
+    }
+  }
+
+  return {u,sender,view,cur,sessions,presets,hideBar:raw.hideBar===true};
+}
+
+let S;
+try{S=normalize(JSON.parse(localStorage.getItem(KEY)))}catch(e){S=DEF()}
+
+let nid=Date.now();
+(function(){
+  let mx=nid;
+  for(const sid of Object.keys(S.sessions)){
+    for(const m of S.sessions[sid].m){if(m.id>mx)mx=m.id}
+  }
+  for(const p of S.presets){if(p.id>mx)mx=p.id}
+  nid=mx;
+})();
+
+function newGroupSid(){return 'g:'+(++nid)}
+
+const pc=w=>['#d99a3d','#7587a8','#5fa08a','#a0709c','#6a8fc4','#b86b6b'][Math.max(0,Object.keys(S.u).indexOf(w))%6];
+const el=(t,c)=>{const e=document.createElement(t);if(c)e.className=c;return e};
+
+function curSession(){return S.sessions[S.cur]||null}
+
+function titleText(){
+  const s=curSession();
+  if(!s)return '聊天';
+  if(s.mode==='group'){
+    const n=s.members.filter(k=>S.u[k]).length;
+    return (s.group||'群聊')+' ('+n+')';
+  }
+  const pair=pairFromSid(S.cur);
+  let other=null;
+  if(pair){
+    other=pair.find(k=>k!==S.view);
+    if(!other)other=pair[0];
+  }
+  if(!other&&s.role)other=s.role;
+  if(!other)other=Object.keys(S.u).find(k=>k!==S.view)||S.view;
+  const r=S.u[other]||S.u[S.view];
+  return r?r.name:'聊天';
+}
+
+/* ---------- 提示 ---------- */
+let toastEl=null,toastT=0;
+function toast(msg){
+  if(!toastEl){toastEl=el('div','toast');document.body.append(toastEl)}
+  toastEl.textContent=msg;toastEl.classList.add('on');
+  clearTimeout(toastT);toastT=setTimeout(()=>toastEl.classList.remove('on'),1900);
+}
+
+let quotaWarned=false;
+function save(){
+  try{localStorage.setItem(KEY,JSON.stringify(S));return true}
+  catch(e){
+    if(!quotaWarned){quotaWarned=true;toast('保存失败：本地空间不足')}
+    return false;
+  }
+}
+
+function avatar(w,cls){
+  const u=S.u[w],d=el('div','av '+(cls||''));
+  if(u.av)d.style.backgroundImage='url("'+u.av+'")';
+  else{d.textContent=(u.name||'?').slice(0,1);d.style.background=pc(w)}
+  return d;
+}
+
+function render(keep){
+  const list=$('#list'),top=list.scrollTop;
+  list.textContent='';
+  const s=curSession();
+
+  $('#title').textContent=titleText();
+  $('#who').textContent='发送人：'+S.u[S.sender].name;
+  $('#bar').classList.toggle('hide',!!S.hideBar);
+
+  let ms=[];
+  if(s){
+    if(s.mode==='group'){
+      const set=new Set(s.members);
+      ms=s.m.filter(m=>set.has(m.w));
+    }else{
+      ms=s.m;
+    }
+  }
+
+  if(!ms.length){
+    const e=el('div','empty');
+    e.textContent=(s&&s.mode==='group'&&!s.members.length)
+      ? '群里还没有成员，点标题勾选成员进群吧'
+      : '还没有消息，在下方发一句吧。菜单里可添加人物、切换视角，点标题可切换群聊/私聊';
+    list.append(e);
+  }
+
+  ms.forEach(m=>{
+    if(!S.u[m.w])return;
+    const isMe=(m.w===S.view);
+    const row=el('div','row '+(isMe?'me':'other'));
+    const a=avatar(m.w);a.onclick=()=>editUser(m.w);
+    const col=el('div','col'),n=el('div','nm');n.textContent=S.u[m.w].name;
+    const b=el('div','bub'+(m.t==='i'?' pic':''));
+    if(m.t==='i'){const i=el('img');i.src=m.v;i.alt='图片';i.draggable=false;b.append(i)}
+    else b.textContent=m.v;
+    press(b,m);
+    col.append(n,b);row.append(a,col);list.append(row);
+  });
+  list.scrollTop=keep?top:list.scrollHeight;
+}
+
+/* ---------- 长按 / 右键菜单 ---------- */
+function press(b,m){
+  let timer=null,sx=0,sy=0;
+  const cancel=()=>{clearTimeout(timer);timer=null};
+  b.addEventListener('pointerdown',e=>{
+    if(e.pointerType==='mouse'&&e.button!==0)return;
+    sx=e.clientX;sy=e.clientY;cancel();
+    timer=setTimeout(()=>{timer=null;menu(m)},520);
+  });
+  b.addEventListener('pointermove',e=>{
+    if(timer&&(Math.abs(e.clientX-sx)>8||Math.abs(e.clientY-sy)>8))cancel();
+  });
+  ['pointerup','pointercancel','pointerleave'].forEach(v=>b.addEventListener(v,cancel));
+  b.addEventListener('contextmenu',e=>{e.preventDefault();cancel();menu(m)});
+}
+
+/* ---------- 弹层 ---------- */
+const ov=$('#ov');
+function close(){ov.className='';ov.textContent=''}
+ov.addEventListener('click',e=>{if(e.target===ov)close()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
+
+function sheet(items){
+  ov.textContent='';ov.className='on sheet';
+  const box=el('div','sheetbox');
+  items.forEach(([label,fn,cls])=>{
+    const b=el('button',cls);b.textContent=label;
+    b.onclick=()=>{close();fn&&fn()};
+    box.append(b);
+  });
+  ov.append(box);
+}
+function dialog(title,nodes,onOk){
+  ov.textContent='';ov.className='on dlg';
+  const c=el('div','card'),h=el('h2');h.textContent=title;c.append(h,...nodes);
+  const acts=el('div','acts'),no=el('button');no.textContent='取消';no.onclick=close;
+  const ok=el('button','ok');ok.textContent='保存';ok.onclick=()=>{if(onOk()!==false)close()};
+  acts.append(no,ok);c.append(acts);ov.append(c);
+}
+
+/* ---------- 选图 + 压缩 ---------- */
+function pick(max,cb){
+  const f=$('#file');f.value='';
+  f.onchange=()=>{
+    const file=f.files[0];if(!file)return;
+    const r=new FileReader();
+    r.onload=()=>{
+      const im=new Image();
+      im.onload=()=>{
+        const k=Math.min(1,max/Math.max(im.width,im.height));
+        const c=document.createElement('canvas');
+        c.width=Math.max(1,Math.round(im.width*k));
+        c.height=Math.max(1,Math.round(im.height*k));
+        c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+        cb(c.toDataURL('image/jpeg',.82));
+      };
+      im.onerror=()=>toast('图片读取失败');
+      im.src=r.result;
+    };
+    r.readAsDataURL(file);
+  };
+  f.click();
+}
+
+/* ---------- 复制文字 ---------- */
+function fallbackCopy(txt){
+  const ta=el('textarea');ta.value=txt;
+  ta.style.cssText='position:fixed;top:-999px;left:0;opacity:0';
+  document.body.append(ta);ta.select();
+  let ok=false;try{ok=document.execCommand('copy')}catch(e){}
+  ta.remove();toast(ok?'已复制':'复制失败');
+}
+function copyText(txt){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(()=>toast('已复制'),()=>fallbackCopy(txt));
+  }else fallbackCopy(txt);
+}
+
+/* ---------- 消息菜单 ---------- */
+function menu(m){
+  const items=[];
+  if(m.t==='t')items.push(['复制文字',()=>copyText(m.v)]);
+  items.push(['编辑',()=>editMsg(m)]);
+  items.push(['删除',()=>{
+    const s=curSession();
+    if(s)s.m=s.m.filter(x=>x!==m);
+    save();render(true);
+  },'danger']);
+  items.push(['取消']);
+  sheet(items);
+}
+function editMsg(m){
+  if(m.t==='i'){pick(900,d=>{m.v=d;save();render(true)});return}
+  const ta=el('textarea');ta.value=m.v;
+  dialog('编辑消息',[ta],()=>{
+    const v=ta.value.trim();
+    if(!v)return false;
+    m.v=v;save();render(true);
+  });
+  ta.focus();
+}
+
+/* ---------- 人物编辑 ---------- */
+function editUser(w){
+  const u=S.u[w];let av=u.av;
+  const prev=el('div','av big'),c=el('div','c');
+  const inp=el('input');inp.type='text';inp.value=u.name;inp.maxLength=20;
+
+  const paint=()=>{
+    if(av){prev.style.background='url("'+av+'") center/cover';prev.textContent=''}
+    else{prev.style.background=pc(w);prev.textContent=(inp.value||u.name||'?').slice(0,1)}
+  };
+
+  const up=el('button','pill');up.textContent='上传头像';up.style.maxWidth='none';
+  const rm=el('button','pill');rm.textContent='恢复默认';rm.style.maxWidth='none';
+  up.onclick=()=>pick(256,d=>{av=d;paint()});
+  rm.onclick=()=>{av='';paint()};
+  inp.oninput=()=>{if(!av)paint()};
+  c.append(up,rm);
+
+  if(w!==S.view){
+    const so=el('button','pill');so.textContent='设为视角';so.style.maxWidth='none';
+    so.title='让这个人在右边（黄色气泡）';
+    so.onclick=()=>{setView(w);close();};
+    c.append(so);
+  }
+  if(Object.keys(S.u).length>2){
+    const dl=el('button','pill');dl.textContent='删除此人';
+    dl.style.cssText='max-width:none;color:#d93a3a';
+    dl.onclick=()=>{
+      delete S.u[w];
+      for(const sid of Object.keys(S.sessions)){
+        const s=S.sessions[sid];
+        s.m=s.m.filter(x=>x.w!==w);
+        s.members=s.members.filter(k=>k!==w);
+        if(s.mode==='role'&&s.role===w)s.role='';
+      }
+      S.presets.forEach(p=>{p.members=p.members.filter(k=>k!==w)});
+      const left=Object.keys(S.u);
+      if(!left.length){toast('至少保留一个人');S.u[u]=u;return}
+      if(S.view===w)S.view=left[0];
+      if(S.sender===w)S.sender=left[0];
+      if(!curSession())S.cur=Object.keys(S.sessions)[0];
+      save();close();render();
+    };
+    c.append(dl);
+  }
+
+  const lab=el('label');lab.textContent='昵称 / ID';
+  dialog('编辑头像和 ID',[prev,c,lab,inp],()=>{
+    const n=inp.value.trim();
+    if(!n)return false;
+    u.name=n;u.av=av;save();render(true);
+  });
+  paint();
+}
+
+function addPerson(){
+  let av='';
+  const id='u'+(++nid);
+  const prev=el('div','av big');
+  const c=el('div','c');
+  const inp=el('input');inp.type='text';inp.maxLength=20;inp.placeholder='新成员';
+
+  const paint=()=>{
+    if(av){prev.style.background='url("'+av+'") center/cover';prev.textContent=''}
+    else{prev.style.background='#7587a8';prev.textContent=(inp.value||'?').slice(0,1)}
+  };
+
+  const up=el('button','pill');up.textContent='上传头像';up.style.maxWidth='none';
+  up.onclick=()=>pick(256,d=>{av=d;paint()});
+  inp.oninput=()=>{if(!av)paint()};
+  c.append(up);
+
+  const lab=el('label');lab.textContent='昵称 / ID';
+  dialog('添加人物',[prev,c,lab,inp],()=>{
+    const n=inp.value.trim();
+    if(!n)return false;
+    S.u[id]={name:n,av};
+    const s=curSession();
+    if(s&&s.mode==='group'&&!s.members.includes(id))s.members.push(id);
+    save();render(true);
+  });
+  paint();inp.focus();
+}
+
+/* ---------- 视角切换：私聊自动跟随到新手机 ---------- */
+function setView(w){
+  const s=curSession();
+  if(s&&s.mode==='role'){
+    const pair=pairFromSid(S.cur);
+    let other;
+    if(pair){
+      if(pair[0]===w)other=pair[1];
+      else if(pair[1]===w)other=pair[0];
+      else other=pair[0];
+    }else{
+      other=Object.keys(S.u).find(k=>k!==w)||w;
+    }
+    if(!S.u[other])other=Object.keys(S.u).find(k=>k!==w)||w;
+    S.view=w;
+    const nsid=sidForPair(w,other);
+    if(!S.sessions[nsid]){
+      S.sessions[nsid]={mode:'role',role:other,group:'',members:[w,other],m:[]};
+    }
+    S.cur=nsid;
+  }else{
+    S.view=w;
+  }
+  save();render(true);
+}
+
+/* ---------- 切换群聊 / 私聊 ---------- */
+function editTitle(){
+  const s=curSession();
+  const keys=Object.keys(S.u);
+
+  const lab=el('label');lab.textContent='聊天类型';
+  const sel=el('select');
+  [['role','私聊'],['group','群聊']].forEach(([v,l])=>{
+    const o=el('option');o.value=v;o.textContent=l;sel.append(o);
+  });
+  sel.value=s?s.mode:'role';
+
+  /* 私聊 */
+  const roleBox=el('div');
+  const rlab=el('label');rlab.textContent='对方';
+  const rs=el('select');
+  {const o=el('option');o.value='';o.textContent='随视角变化';rs.append(o)}
+  keys.forEach(k=>{const o=el('option');o.value=k;o.textContent=S.u[k].name;rs.append(o)});
+  if(s&&s.mode==='role'&&s.role&&S.u[s.role])rs.value=s.role;
+  roleBox.append(rlab,rs);
+
+  /* 群聊 */
+  const groupBox=el('div');
+  const glab=el('label');glab.textContent='群名';
+  const gi=el('input');gi.type='text';
+  gi.value=(s&&s.mode==='group')?s.group:'群聊';
+  gi.maxLength=30;gi.placeholder='群名';
+
+  const mlab=el('label');mlab.textContent='群成员（勾选进群）';
+  const mlist=el('div','mlist');
+  const checks={};
+  const initMembers=(s&&s.mode==='group')?s.members.slice():keys.slice();
+  keys.forEach(k=>{
+    const row=el('label','mrow');
+    const cb=el('input');cb.type='checkbox';cb.checked=initMembers.includes(k);
+    checks[k]=cb;
+    const span=el('span');span.textContent=S.u[k].name;
+    row.append(cb,span);
+    mlist.append(row);
+  });
+
+  /* 已有群聊切换 */
+  const glab2=el('label');glab2.textContent='或切换到已有群聊';
+  const gsel=el('select');
+  {const o=el('option');o.value='';o.textContent='不切换（使用上面的群名/成员）';gsel.append(o)}
+  Object.keys(S.sessions).forEach(sid=>{
+    const ss=S.sessions[sid];
+    if(ss.mode!=='group')return;
+    if(sid===S.cur)return;
+    const n=ss.members.filter(k=>S.u[k]).length;
+    const o=el('option');o.value=sid;o.textContent=ss.group+'（'+n+'人）';
+    gsel.append(o);
+  });
+  gsel.onchange=()=>{
+    if(!gsel.value)return;
+    const ss=S.sessions[gsel.value];
+    if(!ss)return;
+    gi.value=ss.group;
+    keys.forEach(k=>{checks[k].checked=ss.members.includes(k)});
+  };
+
+  groupBox.append(glab,gi,mlab,mlist,glab2,gsel);
+
+  const sync=()=>{
+    roleBox.style.display=sel.value==='role'?'':'none';
+    groupBox.style.display=sel.value==='group'?'':'none';
+  };
+  sel.onchange=sync;sync();
+
+  dialog('切换群聊或者私聊',[lab,sel,roleBox,groupBox],()=>{
+    if(sel.value==='group'){
+      if(gsel.value&&S.sessions[gsel.value]&&S.sessions[gsel.value].mode==='group'){
+        S.cur=gsel.value;
+        save();render(true);
+        return;
+      }
+      const name=gi.value.trim();
+      if(!name){toast('请填写群名');return false}
+      const ms=keys.filter(k=>checks[k].checked);
+      const cur=curSession();
+      if(cur&&cur.mode==='group'){
+        cur.group=name.slice(0,30);
+        cur.members=ms;
+      }else{
+        const sid=newGroupSid();
+        S.sessions[sid]={mode:'group',role:'',group:name.slice(0,30),members:ms,m:[]};
+        S.cur=sid;
+      }
+    }else{
+      let other=rs.value;
+      if(!other||!S.u[other])other=Object.keys(S.u).find(k=>k!==S.view)||S.view;
+      if(other===S.view){
+        const alt=Object.keys(S.u).find(k=>k!==S.view);
+        if(alt)other=alt;
+      }
+      const sid=sidForPair(S.view,other);
+      if(!S.sessions[sid]){
+        S.sessions[sid]={mode:'role',role:other,group:'',members:[S.view,other],m:[]};
+      }else if(!S.sessions[sid].role){
+        S.sessions[sid].role=other;
+      }
+      S.cur=sid;
+    }
+    save();render(true);
+  });
+}
+
+/* =========================================================
+   群聊预设
+   ========================================================= */
+function savePresetDialog(){
+  const s=curSession();
+  if(!s||s.mode!=='group'){toast('请先切换到群聊再保存预设');return}
+  const keys=Object.keys(S.u);
+  const lab1=el('label');lab1.textContent='预设名称';
+  const inp=el('input');inp.type='text';inp.value=(s.group||'群聊').slice(0,30);inp.maxLength=30;
+  const lab2=el('label');lab2.textContent='包含成员';
+  const mlist=el('div','mlist');
+  const checks={};
+  keys.forEach(k=>{
+    const row=el('label','mrow');
+    const cb=el('input');cb.type='checkbox';cb.checked=s.members.includes(k);
+    checks[k]=cb;
+    const span=el('span');span.textContent=S.u[k].name;
+    row.append(cb,span);mlist.append(row);
+  });
+
+  dialog('保存群预设',[lab1,inp,lab2,mlist],()=>{
+    const n=inp.value.trim();
+    if(!n){toast('请填写预设名称');return false}
+    const ms=keys.filter(k=>checks[k].checked);
+    if(!ms.length){toast('至少选一个成员');return false}
+    const exist=S.presets.find(p=>p.name===n);
+    if(exist){exist.members=ms;exist.sid=S.cur}
+    else S.presets.push({id:++nid,name:n.slice(0,30),members:ms,sid:S.cur});
+    save();toast('已保存预设');render(true);
+  });
+  inp.focus();inp.select();
+}
+
+function applyPreset(p){
+  let sid=p.sid;
+  if(!sid||!S.sessions[sid]){
+    sid='g:preset-'+(p.id||p.name);
+    if(!S.sessions[sid])S.sessions[sid]={mode:'group',role:'',group:p.name,members:[],m:[]};
+    p.sid=sid;
+  }
+  const s=S.sessions[sid];
+  s.mode='group';
+  s.group=p.name;
+  s.members=p.members.filter(k=>S.u[k]);
+  S.cur=sid;
+  save();render();
+  toast('已加载：'+p.name);
+}
+
+function deletePresetSheet(){
+  if(!S.presets.length){toast('还没有预设');return}
+  sheet([
+    ...S.presets.map(p=>[p.name+'（'+p.members.filter(k=>S.u[k]).length+'人）',
+      ()=>{S.presets=S.presets.filter(x=>x!==p);save();toast('已删除预设')},'danger']),
+    ['取消']
+  ]);
+}
+
+function presetSheet(){
+  const items=[];
+  if(S.presets.length){
+    S.presets.forEach(p=>{
+      const n=p.members.filter(k=>S.u[k]).length;
+      items.push([p.name+'（'+n+'人）',()=>applyPreset(p)]);
+    });
+  }
+  items.push(['保存当前为预设',savePresetDialog]);
+  if(S.presets.length)items.push(['删除预设',deletePresetSheet]);
+  items.push(['取消']);
+  sheet(items);
+}
+
+/* ---------- 发送 ---------- */
+function add(t,v){
+  const s=curSession();
+  if(!s){toast('当前没有会话');return}
+  s.m.push({id:++nid,w:S.sender,t,v});
+  if(!save())return;
+  render();
+}
+function sendText(){
+  const v=$('#txt').value.trim();
+  if(!v)return;
+  add('t',v);
+  $('#txt').value='';
+  $('#txt').focus();
+}
+$('#send').onclick=sendText;
+$('#txt').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing)sendText()});
+
+/* ---------- 发送人 / 视角 ---------- */
+function senderPicker(){
+  sheet([
+    ...Object.keys(S.u).map(k=>[(k===S.sender?'✓ ':'')+S.u[k].name,()=>{S.sender=k;save();render(true)}]),
+    ['取消']
+  ]);
+}
+function viewPicker(){
+  sheet([
+    ...Object.keys(S.u).map(k=>[(k===S.view?'✓ ':'')+S.u[k].name,()=>{setView(k);close()} ]),
+    ['取消']
+  ]);
+}
+$('#who').onclick=senderPicker;
+$('#title').onclick=editTitle;
+$('#imgbtn').onclick=()=>pick(900,d=>add('i',d));
+
+/* ---------- 主菜单 ---------- */
+$('#menu').onclick=()=>sheet([
+  ['添加人物',addPerson],
+  ['切换视角',viewPicker],
+  ['编辑人物',()=>sheet([
+    ...Object.keys(S.u).map(k=>[S.u[k].name,()=>editUser(k)]),
+    ['取消']
+  ])],
+  ['切换群聊或者私聊',editTitle],
+  ['群聊预设',presetSheet],
+  [S.hideBar?'显示输入栏':'隐藏输入栏',()=>{S.hideBar=!S.hideBar;save();render(true)}],
+  ['清空聊天',()=>{
+    const s=curSession();
+    if(s&&s.m.length&&!confirm('确定清空当前会话的聊天记录？'))return;
+    if(s)s.m=[];
+    save();render();
+  },'danger'],
+  ['重置全部',()=>{
+    if(!confirm('确定重置全部内容？将清除所有人物、会话、预设和消息。'))return;
+    S=DEF();nid=Date.now();save();render();
+  },'danger'],
+  ['取消']
+]);
+
+render();
+</script>
+
+<!-- 注册 Service Worker 用于 PWA -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
